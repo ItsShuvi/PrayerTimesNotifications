@@ -5,6 +5,22 @@ import salat
 import datetime as dt
 import pytz
 import geocoder
+import pystray
+import PIL.Image
+import threading
+import sys
+
+running = True
+
+#Exit
+def exitApplication(icon=None, item=None):
+    global running
+    running = False  # Stop the schedule loop
+    print("Exiting application...")
+    if icon:  # Stop the tray icon if running
+        icon.stop()
+    sys.exit(0)  # Exit the program
+
 
 # Show the notification
 def showToast(titleX, messageX):
@@ -23,9 +39,11 @@ def ScheduleAlarms(names, times):
 
 # Run the scheduled tasks
 def runSchedule():
-    while True:
+    global running
+    while running:
         schedule.run_pending()  # Run any scheduled tasks
         time.sleep(1)
+
 
 # TODO: make latitude and longitude save on device for offline usage
 # Get Latitude and Longitude from IP
@@ -39,7 +57,7 @@ def getLocation():
 
 
 # Calculate prayer times
-def CalculateTimes(): 
+def calculateTimes(): 
     prayerTimes = salat.PrayerTimes(salat.CalculationMethod.KARACHI, salat.AsrMethod.STANDARD)
     latitude, longitude = getLocation()
     date = dt.date.today()
@@ -54,21 +72,51 @@ def CalculateTimes():
 
     for time in notFormattedTimes:
         y = time.strftime("%H:%M")
-        print(y)
         times.append(y)
 
     return names, times
 
 
+# Tray Icon Buttons functions
+def onClick(icon, item):
+    if str(item) == "Not so secret":
+        print("I use arch btw")
+    else :
+        print("To Be implemented")
+
+#
+def runTrayIcon():
+    image = PIL.Image.open("assets/PrayerTimes.png")
+    icon = pystray.Icon(
+        "PrayerTimes",
+        image,
+        menu=pystray.Menu(
+            pystray.MenuItem("Not so secret", onClick),
+            pystray.MenuItem("Quit", exitApplication),
+        ),
+    )
+
+    # Run the tray icon
+    icon.run()
+
+
 # Main function that combines everything
 def main():
 
-    namesX, timesX = CalculateTimes()
+    namesX, timesX = calculateTimes()
 
     ScheduleAlarms(namesX, timesX)
 
+    tray_thread = threading.Thread(target=runTrayIcon, daemon=True)
+    tray_thread.start()
+
     runSchedule()
-    
+
+    try:
+        runSchedule()
+    except KeyboardInterrupt:
+        print("Keyboard interrupt detected.")
+        exitApplication()
 
 
 if __name__ == "__main__":
